@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Movie App</title>
+<style>
+/* --- GLOBAL STYLES --- */
+body { font-family: Arial, sans-serif; background:#010014; color:#fff; margin:0; padding:0; }
+header { padding:20px; text-align:center; background:#020026; box-shadow:0 0 10px #0af; position:relative; }
+input { padding:10px; border-radius:20px; border:none; outline:none; width:220px; font-size:15px;
+        background: rgba(255,255,255,0.05); color:#fff; box-shadow:0 0 8px #0af inset; transition:0.3s, box-shadow 0.5s; }
+input:focus { box-shadow:0 0 20px #0af inset, 0 0 20px #0af; animation: neonGlow 1.5s infinite alternate; }
+@keyframes neonGlow { from { box-shadow:0 0 15px #0af, 0 0 20px #7ef1b6 inset;} to { box-shadow:0 0 25px #0af, 0 0 35px #7ef1b6 inset;} }
+
+button { padding:10px 14px; border:none; border-radius:20px; font-weight:bold; cursor:pointer;
+         background: linear-gradient(90deg,#0af,#7ef1b6); color:#000; transition:0.3s; box-shadow:0 0 10px #0af; }
+button:hover { transform:scale(1.05); box-shadow:0 0 20px #0af,0 0 40px #7ef1b6; }
+
+/* --- NEON SEARCH SUGGESTIONS --- */
+.suggest-list { position:absolute; top:70px; left:50%; transform:translateX(-50%);
+                background:#020026; border-radius:12px; width:250px; max-height:200px; overflow-y:auto;
+                box-shadow:0 0 20px #0af,0 0 40px #7ef1b6; display:none; z-index:10; transition: all 0.3s ease; }
+.suggest-item { padding:10px; cursor:pointer; border-radius:8px; color:#7ef1b6;
+               transition: all 0.3s ease; text-shadow: 0 0 8px #0af; }
+.suggest-item:hover { background: #0af; color:#000; box-shadow:0 0 20px #0af,0 0 40px #7ef1b6; transform:scale(1.05); }
+
+/* --- TRENDING SLIDER --- */
+.slider-wrapper { overflow:hidden; position:relative; padding:20px 0; }
+.slider { display:flex; gap:16px; will-change:transform; animation:scroll 20s linear infinite; perspective:1000px; }
+.slider:hover { animation-play-state:paused; }
+@keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+.slider-card { flex:0 0 180px; background:#020026; border-radius:12px; cursor:pointer; transition:0.4s; transform-style: preserve-3d; position:relative; overflow:hidden;
+               border: 2px solid #0af; animation: neonBorder 2s infinite alternate; }
+@keyframes neonBorder { from { box-shadow: 0 0 10px #0af, 0 0 20px #7ef1b6; } to { box-shadow: 0 0 20px #0af, 0 0 40px #7ef1b6; } }
+
+.slider-card img { width:100%; height:220px; object-fit:cover; border-radius:12px; transition:transform 0.4s, filter 0.4s; }
+.slider-card:hover img { transform: scale(1.1) rotateY(15deg) rotateX(5deg); filter: brightness(1.2); }
+.slider-card h4 { font-size:14px; margin:6px; color:#7ef1b6; text-align:center; font-weight:bold; text-shadow:0 0 8px #0af; transition:0.3s; }
+.slider-card:hover h4 { text-shadow:0 0 20px #0af,0 0 40px #7ef1b6; transform: translateY(-5px); }
+
+/* --- MOVIE GRID --- */
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; padding:10px; }
+.card { background:#020026; border-radius:8px; overflow:hidden; text-align:center; transition:0.3s; cursor:pointer; }
+.card:hover { transform:translateY(-5px); box-shadow:0 0 20px #0af,0 0 40px #7ef1b6; }
+.card img { width:100%; height:220px; object-fit:cover; border-bottom:1px solid #0af; }
+.card h3 { font-size:14px; margin:6px 0 2px; }
+.card p { font-size:12px; color:#7ef1b6; margin:0 0 6px; }
+
+/* --- MODAL --- */
+.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; z-index:20; padding:10px; }
+.modal-content { background:#020026; padding:20px; border-radius:10px; max-width:400px; width:100%; text-align:center; box-shadow:0 0 30px #0af; position:relative; }
+.close { position:absolute; top:8px; right:12px; cursor:pointer; font-size:18px; color:#0af; transition:0.3s; }
+.close:hover { transform:scale(1.2); color:#7ef1b6; }
+.modal-content img { width:100%; margin-bottom:10px; border-radius:6px; }
+.modal-content h2 { margin:6px 0; font-size:18px; }
+.modal-content p { margin:4px 0; color:#7ef1b6; font-size:14px; }
+.modal-content button { margin-top:8px; font-size:14px; padding:6px 12px; border-radius:20px; }
+
+/* --- FILTERS --- */
+.filters { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:10px; }
+.filter-chip { padding:6px 12px; border-radius:20px; background:rgba(255,255,255,0.05); color:#fff; cursor:pointer; transition:0.3s; border:1px solid #0af; }
+.filter-chip.active { background: linear-gradient(90deg,#0af,#7ef1b6); color:#000; border-color:#0af; }
+
+/* --- LOADING --- */
+.loading { color:#0af; font-weight:bold; text-align:center; margin-top:10px; }
+
+/* --- RESPONSIVE --- */
+@media(max-width:900px){
+  .slider-card { flex:0 0 140px; }
+  .slider-card img { height:200px; }
+  .card img { height:200px; }
+}
+
+@media(max-width:600px){
+  input { width:140px; font-size:13px; }
+  button { padding:8px 10px; font-size:12px; }
+  .slider-card { flex:0 0 120px; }
+  .slider-card img { height:160px; }
+  .card img { height:160px; }
+  .card h3 { font-size:12px; }
+  .card p { font-size:10px; }
+  .slider { gap:10px; }
+  .filters { gap:6px; }
+  .modal-content { max-width:300px; padding:15px; }
+  .modal-content h2 { font-size:16px; }
+  .modal-content p { font-size:12px; }
+  .modal-content button { font-size:12px; padding:5px 10px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Neon Movie App</h1>
+  <div style="position:relative; display:inline-block;">
+    <input type="text" id="searchInput" placeholder="Search movies...">
+    <button id="btnSearch">Search</button>
+    <div class="suggest-list" id="suggestList"></div>
+  </div>
+  <div class="filters" id="genreFilters">
+    <div class="filter-chip active" data-genre="">All</div>
+    <div class="filter-chip" data-genre="Action">Action</div>
+    <div class="filter-chip" data-genre="Comedy">Comedy</div>
+    <div class="filter-chip" data-genre="Drama">Drama</div>
+    <div class="filter-chip" data-genre="Horror">Horror</div>
+    <div class="filter-chip" data-genre="Romance">Romance</div>
+  </div>
+  <div class="loading" id="loading" style="display:none;">Searching...</div>
+</header>
+
+<section class="slider-wrapper">
+  <div class="slider" id="trendingSlider"></div>
+</section>
+<div class="grid" id="movieGrid"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <span class="close" id="closeModal">&times;</span>
+    <img id="modalPoster" src="" alt="Poster">
+    <h2 id="modalTitle"></h2>
+    <p id="modalYear"></p>
+    <p id="modalRating"></p>
+    <button id="watchTrailer">Watch Trailer</button>
+  </div>
+</div>
+
+<script>
+const apiKey='6d634c23';
+const movieGrid=document.getElementById('movieGrid');
+const trendingSlider=document.getElementById('trendingSlider');
+const modal=document.getElementById('modal');
+const closeModal=document.getElementById('closeModal');
+const modalPoster=document.getElementById('modalPoster');
+const modalTitle=document.getElementById('modalTitle');
+const modalYear=document.getElementById('modalYear');
+const modalRating=document.getElementById('modalRating');
+const watchTrailer=document.getElementById('watchTrailer');
+const suggestList=document.getElementById('suggestList');
+const loading=document.getElementById('loading');
+const searchInput=document.getElementById('searchInput');
+let currentMovieID='';
+
+const trendingIDs=["tt1375666","tt0133093","tt0137523","tt0120737","tt0111161","tt0816692","tt0468569"];
+let trendingMovies=[];
+
+async function fetchTrending(){
+  trendingMovies=[];
+  for(let id of trendingIDs){
+    const res=await fetch(`https://www.omdbapi.com/?i=${id}&apikey=${apiKey}`);
+    const data=await res.json();
+    trendingMovies.push(data);
+  }
+  renderTrending();
+}
+
+function renderTrending(){
+  trendingSlider.innerHTML='';
+  const combinedMovies = [...trendingMovies, ...trendingMovies];
+  combinedMovies.forEach(movie=>{
+    const div=document.createElement('div');
+    div.className='slider-card';
+    div.innerHTML=`<img src="${movie.Poster}" alt="${movie.Title}"><h4>${movie.Title}</h4>`;
+    div.onclick=()=>showModal(movie.imdbID);
+    trendingSlider.appendChild(div);
+  });
+}
+
+async function searchMovies(query,genre=''){
+  if(!query) return;
+  loading.style.display='block';
+  const res=await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(query)}&apikey=${apiKey}`);
+  const data=await res.json();
+  loading.style.display='none';
+  const filtered=data.Search ? data.Search.filter(m=>genre? (m.Genre && m.Genre.includes(genre)) : true) : [];
+  renderMovies(filtered);
+}
+
+function renderMovies(movies){
+  movieGrid.innerHTML='';
+  movies.forEach(movie=>{
+    const div=document.createElement('div');
+    div.className='card';
+    div.innerHTML=`<img src="${movie.Poster!=='N/A'?movie.Poster:'https://via.placeholder.com/150x220'}"><h3>${movie.Title}</h3><p>${movie.Year}</p>`;
+    div.onclick=()=>showModal(movie.imdbID);
+    movieGrid.appendChild(div);
+  });
+}
+
+async function showModal(imdbID){
+  currentMovieID=imdbID;
+  const res=await fetch(`https://www.omdbapi.com/?i=${imdbID}&apikey=${apiKey}`);
+  const movie=await res.json();
+  modalPoster.src=movie.Poster!=='N/A'?movie.Poster:'https://via.placeholder.com/150x220';
+  modalTitle.textContent=movie.Title;
+  modalYear.textContent=`Year: ${movie.Year}`;
+  modalRating.textContent=`IMDB Rating: ${movie.imdbRating||'N/A'}`;
+  modal.style.display='flex';
+}
+
+watchTrailer.onclick=()=>{ if(currentMovieID){ const query=modalTitle.textContent+" trailer"; window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,'_blank'); }};
+closeModal.onclick=()=>modal.style.display='none';
+window.onclick=e=>{if(e.target==modal) modal.style.display='none';}
+
+// Live suggestions
+let debounceTimer;
+searchInput.addEventListener('input',()=>{
+  clearTimeout(debounceTimer);
+  const val=searchInput.value.trim();
+  if(val.length<2){suggestList.style.display='none'; return;}
+  debounceTimer=setTimeout(async()=>{
+    const res=await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(val)}&apikey=${apiKey}`);
+    const data=await res.json();
+    suggestList.innerHTML='';
+    if(data.Search){
+      data.Search.forEach(m=>{
+        const div=document.createElement('div');
+        div.className='suggest-item';
+        div.textContent=m.Title;
+        div.onclick=()=>{searchInput.value=m.Title;suggestList.style.display='none'; searchMovies(m.Title);}
+        suggestList.appendChild(div);
+      });
+      suggestList.style.display='block';
+    } else suggestList.style.display='none';
+  },400);
+});
+
+document.getElementById('btnSearch').onclick=()=>{suggestList.style.display='none'; searchMovies(searchInput.value.trim());}
+searchInput.addEventListener('keypress',e=>{if(e.key==='Enter'){suggestList.style.display='none'; searchMovies(searchInput.value.trim());}});
+
+// Genre filters
+document.querySelectorAll('.filter-chip').forEach(chip=>{
+  chip.onclick=()=>{
+    document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    const genre=chip.dataset.genre;
+    if(searchInput.value.trim()) searchMovies(searchInput.value.trim(),genre);
+  }
+});
+
+fetchTrending();
+</script>
+<link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+<script type="module">
+	import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+	createChat({
+		webhookUrl: 'http://localhost:5678/webhook/d3e0b800-0f1a-4cd9-8ec3-3f3f4d82accf/chat'
+	});
+</script>
+</body>
+</html>
